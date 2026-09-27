@@ -165,10 +165,9 @@
 
             for (const name of levelNames) {
                 let stats = { rank: 9999, creator: 'Unknown', verifier: 'Unknown', folder: 'Main List' };
-                let imageSrc = '';
-
+                
                 try {
-                    const txtResponse = await fetch(`${name}_stats.txt`);
+                    const txtResponse = await fetch(`Levels/${name}/stats.txt`);
                     if (txtResponse.ok) {
                         const text = await txtResponse.text();
                         text.split('\n').forEach(line => {
@@ -187,29 +186,15 @@
                     console.error(e);
                 }
 
-                try {
-                    const pngCheck = await fetch(`${name}_image.png`, { method: 'HEAD' });
-                    if (pngCheck.ok) {
-                        imageSrc = `${name}_image.png`;
-                    } else {
-                        const jpgCheck = await fetch(`${name}_image.jpg`, { method: 'HEAD' });
-                        if (jpgCheck.ok) {
-                            imageSrc = `${name}_image.jpg`;
-                        } else {
-                            imageSrc = `${name}_image.jpeg`;
-                        }
-                    }
-                } catch (e) {
-                    imageSrc = 'data:image/svg+xml;utf8,<svg xmlns="http://w3.org" width="130" height="73" viewBox="0 0 130 73"><rect width="130" height="73" fill="%23000"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%23777" font-family="sans-serif" font-size="11">No Image</text></svg>';
-                }
-
                 demonList.push({
                     name: name,
                     rank: stats.rank,
                     creator: stats.creator,
                     verifier: stats.verifier,
                     folder: stats.folder,
-                    image: imageSrc
+                    image: `Levels/${name}/image.png`,
+                    fallbackJpg: `Levels/${name}/image.jpg`,
+                    fallbackJpeg: `Levels/${name}/image.jpeg`
                 });
             }
 
@@ -225,6 +210,17 @@
     function showError(message) {
         loadingMsg.style.color = "#ff4444";
         loadingMsg.innerHTML = `⚠️ Error: ${message}`;
+    }
+
+    function handleImageError(img, jpg, jpeg) {
+        if (img.src.endsWith('.png')) {
+            img.src = jpg;
+        } else if (img.src.endsWith('.jpg')) {
+            img.src = jpeg;
+        } else {
+            img.onerror = null;
+            img.src = 'data:image/svg+xml;utf8,<svg xmlns="http://w3.org" width="130" height="73" viewBox="0 0 130 73"><rect width="130" height="73" fill="%23000"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%23777" font-family="sans-serif" font-size="11">No Image</text></svg>';
+        }
     }
 
     function renderLayout(demons) {
@@ -251,7 +247,7 @@
                     card.className = 'demon-card';
                     card.innerHTML = `
                         <div class="demon-rank">#${demon.rank}</div>
-                        <img class="demon-img" src="${demon.image}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://w3.org\' width=\'130\' height=\'73\'><rect width=\'130\' height=\'73\' fill=\'%23000\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%23777\' font-family=\'sans-serif\' font-size=\'11\'>No Image</text></svg>'" alt="${demon.name}">
+                        <img class="demon-img" src="${demon.image}" onerror="handleImageError(this, '${demon.fallbackJpg}', '${demon.fallbackJpeg}')" alt="${demon.name}">
                         <div class="demon-info">
                             <div class="demon-name">${demon.name}</div>
                             <div class="demon-meta">
@@ -287,7 +283,7 @@
                 card.className = 'demon-card';
                 card.innerHTML = `
                     <div class="demon-rank">#${demon.rank}</div>
-                    <img class="demon-img" src="${demon.image}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://w3.org\' width=\'130\' height=\'73\'><rect width=\'130\' height=\'73\' fill=\'%23000\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%23777\' font-family=\'sans-serif\' font-size=\'11\'>No Image</text></svg>'" alt="${demon.name}">
+                    <img class="demon-img" src="${demon.image}" onerror="handleImageError(this, '${demon.fallbackJpg}', '${demon.fallbackJpeg}')" alt="${demon.name}">
                     <div class="demon-info">
                         <div class="demon-name">${demon.name}</div>
                         <div class="demon-meta">
