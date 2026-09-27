@@ -1,4 +1,0 @@
-Rank: 1
-Creator: Epicales
-Verifier: Epicales
-Folder: Main List
