@@ -165,9 +165,10 @@
 
             for (const name of levelNames) {
                 let stats = { rank: 9999, creator: 'Unknown', verifier: 'Unknown', folder: 'Main List' };
+                const safeName = encodeURIComponent(name);
                 
                 try {
-                    const txtResponse = await fetch(`Levels/${name}/stats.txt`);
+                    const txtResponse = await fetch(`Levels/${safeName}/stats.txt`);
                     if (txtResponse.ok) {
                         const text = await txtResponse.text();
                         text.split('\n').forEach(line => {
@@ -192,9 +193,9 @@
                     creator: stats.creator,
                     verifier: stats.verifier,
                     folder: stats.folder,
-                    image: `Levels/${name}/image.png`,
-                    fallbackJpg: `Levels/${name}/image.jpg`,
-                    fallbackJpeg: `Levels/${name}/image.jpeg`
+                    image: `Levels/${safeName}/image.png`,
+                    fallbackJpg: `Levels/${safeName}/image.jpg`,
+                    fallbackJpeg: `Levels/${safeName}/image.jpeg`
                 });
             }
 
