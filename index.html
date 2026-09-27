@@ -150,88 +150,61 @@
 
     window.addEventListener('DOMContentLoaded', async () => {
         try {
-            const currentUrl = window.location.href;
-            
-            if (!currentUrl.includes('github.io')) {
-                showError("This page must be hosted live on GitHub Pages to automatically scan directories.");
-                return;
+            const listResponse = await fetch('list.json');
+            if (!listResponse.ok) {
+                throw new Error("Could not load list.json config file.");
             }
-
-            const pathParts = window.location.pathname.split('/').filter(p => p);
-            const hostnameParts = window.location.hostname.split('.');
             
-            const username = hostnameParts[0];
-            const repoName = pathParts[0] || ''; 
-
-            if (!username || !repoName) {
-                showError("Could not automatically determine your GitHub username or repository name from the URL.");
-                return;
-            }
-
-            const apiEndpoint = `https://github.com{username}/${repoName}/contents/Levels`;
-            
-            const response = await fetch(apiEndpoint);
-            if (!response.ok) {
-                throw new Error(`Levels folder not found inside repository root.`);
-            }
-
-            const directoryContents = await response.json();
-            const folders = directoryContents.filter(item => item.type === 'dir');
-
-            if (folders.length === 0) {
-                showError("The 'Levels' folder does not contain any sub-folders.");
+            const levelNames = await listResponse.json();
+            if (!Array.isArray(levelNames) || levelNames.length === 0) {
+                showError("list.json is empty or not formatted as an array.");
                 return;
             }
 
             const demonList = [];
 
-            for (const folder of folders) {
-                const levelName = folder.name;
-                const folderApiUrl = folder.url; 
-                
+            for (const name of levelNames) {
                 let stats = { rank: 9999, creator: 'Unknown', verifier: 'Unknown', folder: 'Main List' };
                 let imageSrc = '';
 
                 try {
-                    const contentResponse = await fetch(folderApiUrl);
-                    if (contentResponse.ok) {
-                        const files = await contentResponse.json();
-                        
-                        const statsFile = files.find(f => f.name.toLowerCase() === 'stats.txt');
-                        if (statsFile) {
-                            const txtResponse = await fetch(statsFile.download_url);
-                            const text = await txtResponse.text();
-                            
-                            text.split('\n').forEach(line => {
-                                const [key, ...valueParts] = line.split(':');
-                                if (key && valueParts.length) {
-                                    const value = valueParts.join(':').trim();
-                                    const cleanKey = key.trim().toLowerCase();
-                                    if (cleanKey === 'rank') stats.rank = parseInt(value) || 9999;
-                                    if (cleanKey === 'creator') stats.creator = value;
-                                    if (cleanKey === 'verifier') stats.verifier = value;
-                                    if (cleanKey === 'folder') stats.folder = value;
-                                }
-                            });
-                        }
-
-                        const imgFile = files.find(f => {
-                            const name = f.name.toLowerCase();
-                            return name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg');
+                    const txtResponse = await fetch(`${name}_stats.txt`);
+                    if (txtResponse.ok) {
+                        const text = await txtResponse.text();
+                        text.split('\n').forEach(line => {
+                            const [key, ...valueParts] = line.split(':');
+                            if (key && valueParts.length) {
+                                const value = valueParts.join(':').trim();
+                                const cleanKey = key.trim().toLowerCase();
+                                if (cleanKey === 'rank') stats.rank = parseInt(value) || 9999;
+                                if (cleanKey === 'creator') stats.creator = value;
+                                if (cleanKey === 'verifier') stats.verifier = value;
+                                if (cleanKey === 'folder') stats.folder = value;
+                            }
                         });
-                        
-                        if (imgFile) {
-                            imageSrc = imgFile.download_url;
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+
+                try {
+                    const pngCheck = await fetch(`${name}_image.png`, { method: 'HEAD' });
+                    if (pngCheck.ok) {
+                        imageSrc = `${name}_image.png`;
+                    } else {
+                        const jpgCheck = await fetch(`${name}_image.jpg`, { method: 'HEAD' });
+                        if (jpgCheck.ok) {
+                            imageSrc = `${name}_image.jpg`;
                         } else {
-                            imageSrc = 'data:image/svg+xml;utf8,<svg xmlns="http://w3.org" width="130" height="73" viewBox="0 0 130 73"><rect width="130" height="73" fill="%23000"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%23777" font-family="sans-serif" font-size="11">No Image</text></svg>';
+                            imageSrc = `${name}_image.jpeg`;
                         }
                     }
-                } catch (folderErr) {
-                    console.error(folderErr);
+                } catch (e) {
+                    imageSrc = 'data:image/svg+xml;utf8,<svg xmlns="http://w3.org" width="130" height="73" viewBox="0 0 130 73"><rect width="130" height="73" fill="%23000"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%23777" font-family="sans-serif" font-size="11">No Image</text></svg>';
                 }
 
                 demonList.push({
-                    name: levelName,
+                    name: name,
                     rank: stats.rank,
                     creator: stats.creator,
                     verifier: stats.verifier,
@@ -278,7 +251,7 @@
                     card.className = 'demon-card';
                     card.innerHTML = `
                         <div class="demon-rank">#${demon.rank}</div>
-                        <img class="demon-img" src="${demon.image}" alt="${demon.name}">
+                        <img class="demon-img" src="${demon.image}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://w3.org\' width=\'130\' height=\'73\'><rect width=\'130\' height=\'73\' fill=\'%23000\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%23777\' font-family=\'sans-serif\' font-size=\'11\'>No Image</text></svg>'" alt="${demon.name}">
                         <div class="demon-info">
                             <div class="demon-name">${demon.name}</div>
                             <div class="demon-meta">
@@ -314,7 +287,7 @@
                 card.className = 'demon-card';
                 card.innerHTML = `
                     <div class="demon-rank">#${demon.rank}</div>
-                    <img class="demon-img" src="${demon.image}" alt="${demon.name}">
+                    <img class="demon-img" src="${demon.image}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://w3.org\' width=\'130\' height=\'73\'><rect width=\'130\' height=\'73\' fill=\'%23000\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%23777\' font-family=\'sans-serif\' font-size=\'11\'>No Image</text></svg>'" alt="${demon.name}">
                     <div class="demon-info">
                         <div class="demon-name">${demon.name}</div>
                         <div class="demon-meta">
